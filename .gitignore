@@ -1,0 +1,14 @@
+__pycache__/
+.cache/
+lib/
+/env/
+outputs/
+.hydra/
+experiments/
+data
+*.log
+.ipynb_checkpoints/
+*.egg-info/
+/notebooks/
+/bash-scripts/
+shapes/
