@@ -12,3 +12,6 @@ data
 /notebooks/
 /bash-scripts/
 shapes/
+
+# Do not add lighting since it is licesnsed
+*.exr

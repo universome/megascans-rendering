@@ -1,6 +1,14 @@
 """
 This script is intended to render Megascans, exported in the gltf format.
 It can be used to render other gltf models as well.
+
+It was written with the use of the following resources:
+- original rendering script from https://github.com/bmild/nerf
+
+- https://blenderartists.org/t/render-settings-for-depth-normal-albedo-in-2-80/1199454
+- https://blender.stackexchange.com/questions/42579/render-depth-map-to-image-with-python-script
+
+We used Blender 2.93.10 (hash 0a65e1a8e7a9 built 2022-08-02 23:34:42)
 """
 
 #----------------------------------------------------------------------------
@@ -27,7 +35,10 @@ try:
     from tqdm import tqdm
 except:
     tqdm = lambda x, *args, **kwargs: x
-# from omegaconf import OmegaConf, DictConfig
+
+render_layers = None
+depth_file_output = None
+normal_file_output = None
 
 #----------------------------------------------------------------------------
 
@@ -51,13 +62,12 @@ class EasyDict(dict):
 cfg = EasyDict({
     'num_views': 128,
     'random': True,
-    'resolution': (256, 256), # Assuming square images
-    'format': 'PNG',
-    'collection_path': '/home/skoroki/megascans/gltf/food', # Render a single collection
-    # 'collections_dir': '/home/skoroki/megascans/gltf/plants', # Render a directory of collections
-    'collections_skip_up_to': 'vkblbcdia_Butterfly_Weed', # Skip collections until we encounter this one
+    'resolution': (1024, 1024), # Assuming square images
+    # 'collection_path': '/home/skoroki/megascans/gltf/food', # Render a single collection
+    'collections_dir': '/home/skoroki/megascans/gltf/plants', # Render a directory of collections
+    'collections_skip_up_to': 'vfelafzia_Coriander', # Skip collections until we encounter this one
     'scale_wrt_collection': False, # Should we scale objects with respect to their collection
-    'output_path': '/home/skoroki/megascans/data',
+    'output_path': '/home/skoroki/megascans/data/plants',
     'color_depth': 8, # TODO: what's that?
     'camera': EasyDict({
         # 'fov': EasyDict({'dist': 'uniform', 'min': np.deg2rad(20.0), 'max': np.deg2rad(40.0)}),
@@ -69,11 +79,12 @@ cfg = EasyDict({
     'model_ext': '.glb',
     'small_objects_filter_thresh': 2.0, # Remove objects which are smaller than `small_objects_filter_thresh` in any of the dimensions
 })
-# OmegaConf.set_struct(cfg, True) # Make it strict
 
 #----------------------------------------------------------------------------
 
 def initialize(cfg):
+    global render_layers, depth_file_output, normal_file_output
+
     np.random.seed(42)
     os.makedirs(cfg.output_path, exist_ok=True)
 
@@ -81,9 +92,26 @@ def initialize(cfg):
     scene = bpy.context.scene
     scene.render.use_persistent_data = True
 
+    # Set up rendering of depth map.
+    scene.use_nodes = True
+
+    # Depth map output
+    render_layers = scene.node_tree.nodes.new('CompositorNodeRLayers')
+    depth_file_output = scene.node_tree.nodes.new(type="CompositorNodeOutputFile")
+    depth_file_output.label = 'Depth Output'
+    depth_file_output.base_path = ''
+    depth_file_output.format.file_format = "OPEN_EXR"
+    scene.node_tree.links.new(render_layers.outputs['Depth'], depth_file_output.inputs[0])
+
+    # Normal map output
+    normal_file_output = scene.node_tree.nodes.new(type="CompositorNodeOutputFile")
+    normal_file_output.label = 'Normal Output'
+    normal_file_output.base_path = ''
+    normal_file_output.format.file_format = "PNG"
+    scene.node_tree.links.new(render_layers.outputs['Normal'], normal_file_output.inputs[0])
+
     # Add passes for additionally dumping albedo and normals.
-    # scene.view_layers["RenderLayer"].use_pass_normal = True
-    scene.render.image_settings.file_format = str(cfg.format)
+    scene.view_layers["View Layer"].use_pass_normal = True
     scene.render.image_settings.color_depth = str(cfg.color_depth)
 
     # Background
@@ -93,7 +121,7 @@ def initialize(cfg):
     scene.render.resolution_x = cfg.resolution[0]
     scene.render.resolution_y = cfg.resolution[1]
     scene.render.resolution_percentage = 100
-    scene.render.image_settings.file_format = 'PNG'  # set output format to .png
+    scene.render.image_settings.file_format = "PNG"
 
     # Setting the GPU device
     if cfg.device == 'gpu':
@@ -249,6 +277,8 @@ def render_current_view(save_path: os.PathLike, angles: np.ndarray, fov: float, 
     """
     rotate_camera(*angles, fov=fov, radius=radius)
     bpy.context.scene.render.filepath = save_path
+    depth_file_output.file_slots[0].path = save_path + "_depth_"
+    normal_file_output.file_slots[0].path = save_path + "_normal_"
     bpy.ops.render.render(write_still=True)  # render still
 
     frame_data = {
@@ -317,13 +347,9 @@ def normalize_object(obj: bpy.types.Object, scale: float=None):
     v_coords = np.array([vertex.co for vertex in obj.data.vertices]) # [num_coords, 3]
     center = (np.max(v_coords, axis=0) + np.min(v_coords, axis=0)) / 2.0 # [3]
     center = Vector(center) # [3]
-    # assert v_coords.shape[1] == 3, "Wrong vertex coordinates shape"
-    # v_min = v_coords.min(axis=0) # [3]
-    # v_min = Vector(v_min) # [3]
 
     for v in obj.data.vertices:
         v.co -= center # Set all coordinates start from (0, 0, 0)
-    #     # v.co /= max_dim #S et all coordinates between 0 and 1
 
 #----------------------------------------------------------------------------
 
@@ -376,9 +402,6 @@ def load_collection(collection_dir: os.PathLike, ext='.gltf') -> List[bpy.types.
     lod0_file_paths = [f for f in file_paths if 'lod0' in f.lower()]
     loaded_objects = []
 
-    # collection_name = os.path.basename(collection_dir)
-    # master_collection = bpy.context.scene.collection
-    # layer_collection = bpy.data.collections.new(collection_name)
     for f in tqdm(lod0_file_paths, desc=f'Loading the collection {collection_dir}'):
         curr_objects = [o for o in get_all_objects()]
         import_gltf(f)
@@ -389,8 +412,6 @@ def load_collection(collection_dir: os.PathLike, ext='.gltf') -> List[bpy.types.
             delete_object(dummy_obj)
         new_objects = [o for o in new_objects if not o in dummy_objects]
         loaded_objects.extend(new_objects)
-        # layer_collection.objects.link(new_object)
-        # master_collection.objects.unlink(new_object)
 
     # Just in case, clean empty objects
     clean_empty_objects()
