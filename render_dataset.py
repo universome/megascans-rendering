@@ -63,9 +63,9 @@ cfg = EasyDict({
     'num_views': 128,
     'random': True,
     'resolution': (1024, 1024), # Assuming square images
-    # 'collection_path': '/home/skoroki/megascans/gltf/food', # Render a single collection
+    # 'collection_path': '/home/skoroki/megascans/gltf/plants/vfelafzia_Coriander', # Render a single collection
     'collections_dir': '/home/skoroki/megascans/gltf/plants', # Render a directory of collections
-    'collections_skip_up_to': 'vfelafzia_Coriander', # Skip collections until we encounter this one
+    # 'collections_skip_up_to': 'vfelafzia_Coriander', # Skip collections until we encounter this one
     'scale_wrt_collection': False, # Should we scale objects with respect to their collection
     'output_path': '/home/skoroki/megascans/data/plants',
     'color_depth': 8, # TODO: what's that?
