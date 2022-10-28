@@ -79,15 +79,32 @@ def copy_collections(src_path: os.PathLike, models_to_copy: List[os.PathLike], t
 
 #----------------------------------------------------------------------------
 
-def remove_small_images(src_path: os.PathLike, trg_path: os.PathLike, opacity_remove_thresh: float):
-    # opacities = compute_opacities(src_path)
-    with open('tmp.json', 'r') as f:
-        opacities = json.load(f)
+def filter_models(src_path: os.PathLike, trg_path: os.PathLike, opacity_remove_thresh: float):
+    # Step 1. Compute the average opacity per model
+    opacities = compute_opacities(src_path)
+    # with open('tmp.json', 'w') as f:
+    #     json.dump(opacities, f)
+    # with open('tmp.json', 'r') as f:
+    #     opacities = json.load(f)
+
+    # Step 2. Filtering by opacity.
     models_to_copy = set([m for m in opacities if opacities[m] >= opacity_remove_thresh])
     models_to_ignore = set([m for m in opacities if not m in models_to_copy])
     keep_ratio = len(models_to_copy) / len(opacities)
-    print(f'Filtering all the models which have the average opacity of less than {opacity_remove_thresh}.')
-    print(f'Ignoring {len(models_to_ignore)} models. This is {100 - keep_ratio * 100:.02f}% of all the models. {len(models_to_copy)} models remain.')
+    print(f'Ignoring {len(models_to_ignore)} models due to opacitiy. This is {100 - keep_ratio * 100:.02f}% of all the models. {len(models_to_copy)} models remain.')
+
+    # Step 3. Remove just low-quality models (we manually inspected each model).
+    with open('low-quality-models.txt', 'r') as f:
+        low_quality_models = set([m for m in f.read().split('\n') if not m.startswith('#')])
+
+    # Step 4. Filter the low-quality models.
+    all_current_models = models_to_copy
+    models_to_copy = set([m for m in all_current_models if not os.path.basename(m) in low_quality_models])
+    models_to_ignore = set([m for m in all_current_models if not m in models_to_copy])
+    keep_ratio = len(models_to_copy) / len(opacities)
+    print(f'Ignoring {len(models_to_ignore)} more models due to low quality. This is {100 - keep_ratio * 100:.02f}% of all the models. {len(models_to_copy)} models remain.')
+
+    # Step 5. Save the models.
     models_to_copy = [os.path.relpath(m, src_path) for m in models_to_copy]
     copy_collections(src_path, models_to_copy, trg_path)
 
@@ -100,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--opacity_remove_thresh', type=float, help='Remove all the models which have average opacity of less than `opacity_remove_thresh`.')
     args = parser.parse_args()
 
-    remove_small_images(
+    filter_models(
         src_path=args.src_path,
         trg_path=args.trg_path,
         opacity_remove_thresh=args.opacity_remove_thresh,

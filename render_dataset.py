@@ -63,11 +63,11 @@ cfg = EasyDict({
     'num_views': 128,
     'random': True,
     'resolution': (1024, 1024), # Assuming square images
-    # 'collection_path': '/home/skoroki/megascans/gltf/plants/vfelafzia_Coriander', # Render a single collection
-    'collections_dir': '/home/skoroki/megascans/gltf/plants', # Render a directory of collections
+    # 'collection_path': '/path/to/plants/plants/vfelafzia_Coriander', # Render a single collection
+    'collections_dir': '/path/to/megascans/glb-models/plants_collections', # Render a directory of collections
     # 'collections_skip_up_to': 'vfelafzia_Coriander', # Skip collections until we encounter this one
     'scale_wrt_collection': False, # Should we scale objects with respect to their collection
-    'output_path': '/home/skoroki/megascans/data/plants',
+    'output_path': '/path/where/to/save/rendered/data',
     'color_depth': 8, # TODO: what's that?
     'camera': EasyDict({
         # 'fov': EasyDict({'dist': 'uniform', 'min': np.deg2rad(20.0), 'max': np.deg2rad(40.0)}),
@@ -75,7 +75,7 @@ cfg = EasyDict({
         'radius': 3.5,
     }),
     'device': 'gpu',
-    'environment_texture_path': '/home/skoroki/rendering/studio_small_09_4k.exr',
+    'environment_texture_path': '/path/to/lighting.exr',
     'model_ext': '.glb',
     'small_objects_filter_thresh': 2.0, # Remove objects which are smaller than `small_objects_filter_thresh` in any of the dimensions
 })
@@ -159,7 +159,7 @@ def run(cfg):
         assert not 'collections_dir' in cfg, f"Cant handle both single collection and multi-collection: {cfg.collection_path} and {cfg.collections_dir}"
         collection_dirs = [cfg.collection_path]
     else:
-        collection_dirs = [d for d in list_full_paths(cfg.collections_dir) if os.path.isdir(d)]
+        collection_dirs = [d for d in listdir_full_paths(cfg.collections_dir) if os.path.isdir(d)]
         print(f'Found {len(collection_dirs)} collections to render')
 
         if 'collections_skip_up_to' in cfg:
@@ -516,7 +516,7 @@ def rotate_camera(yaw: float, pitch: float, roll: float, fov: float, radius: flo
 
 #----------------------------------------------------------------------------
 
-def list_full_paths(dir_path: os.PathLike) -> List[os.PathLike]:
+def listdir_full_paths(dir_path: os.PathLike) -> List[os.PathLike]:
     """
     Returns a list of full paths to all objects in the given directory.
     """

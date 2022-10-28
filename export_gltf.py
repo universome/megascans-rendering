@@ -1,5 +1,5 @@
 """
-This script exports all the models from Blender into the gltf format
+This script exports all the models from Blender into the glb format
 It saves them "as is" without preserving the directory structure of the collections.
 So you will need to arrange them into folders then yourself if you like.
 Hopefully, there are not too many of them...
@@ -34,7 +34,6 @@ except:
 
 class EasyDict(dict):
     """Convenience class that behaves like a dict but allows access with the attribute syntax."""
-
     def __getattr__(self, name: str) -> Any:
         try:
             return self[name]
@@ -50,7 +49,7 @@ class EasyDict(dict):
 #----------------------------------------------------------------------------
 
 cfg = EasyDict({
-    'output_path': '/Users/universome/Downloads/gltf-models',
+    'output_path': 'path/where/to/save/glb-models',
     'exclude_types': ['CAMERA', 'LIGHT', 'EMPTY'],
     'export_format': 'GLB',
     'delete_all_objects_after_save': True,
@@ -187,14 +186,6 @@ def delete_all_objects():
 
 def file_ext(path: os.PathLike) -> str:
     return os.path.splitext(path)[1].lower()
-
-#----------------------------------------------------------------------------
-
-def list_full_paths(dir_path: os.PathLike) -> List[os.PathLike]:
-    """
-    Returns a list of full paths to all objects in the given directory.
-    """
-    return [os.path.join(dir_path, f) for f in sorted(os.listdir(dir_path))]
 
 #----------------------------------------------------------------------------
 
