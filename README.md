@@ -21,6 +21,13 @@ In this repo, we provide the download links and the rendering code for Megascans
 
 We split those files which exceed 50G into parts via the `zip -q file.zip --out file_split.zip -s 30G` command, so you'll need to download all the parts to unzip this multi-part archive.
 
+We also prepared a script for simpler downloading of the Megascans datasets: you can download it via:
+```
+python download_megascans.py food /my/output/dir/
+python download_megascans.py plants /my/output/dir/
+```
+To download the raw datasets, you need to change the dataset names into `food-raw` and `plants-raw`, respectively.
+
 The raw datasets are the ones which are obtained after "Step 3" in the rendering pipeline.
 The "filtered + processed" datasets are the ones obtained after "Step 4" in the rendering pipeline.
 Those are the datasets which we use for training the model.
